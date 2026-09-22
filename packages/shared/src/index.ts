@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 export const contentModeSchema = z.enum(["general", "ministry", "business", "personal"]);
+export const processingStatusSchema = z.enum(["queued", "uploading", "transcribing", "generating", "ready", "failed"]);
 
 export const newsletterDraftSchema = z.object({
   title: z.string(),
@@ -25,5 +26,11 @@ export const captureEntrySchema = z.object({
   voiceNoteDurationSeconds: z.number().int().min(30).max(180)
 });
 
+export const processingStateSchema = z.object({
+  status: processingStatusSchema,
+  errorMessage: z.string().optional()
+});
+
 export type CaptureEntry = z.infer<typeof captureEntrySchema>;
 export type NewsletterDraft = z.infer<typeof newsletterDraftSchema>;
+export type ProcessingState = z.infer<typeof processingStateSchema>;

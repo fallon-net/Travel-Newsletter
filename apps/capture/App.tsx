@@ -4,7 +4,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useEffect, useState } from "react";
 import { Button, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
-import { captureEntrySchema } from "@travel-newsletter/shared";
+import { captureEntrySchema, processingStateSchema, type ProcessingState } from "@travel-newsletter/shared";
 
 const contentModes = ["general", "ministry", "business", "personal"] as const;
 const savedEntriesStorageKey = "travel-newsletter.saved-entries";
@@ -18,6 +18,16 @@ type SavedEntry = {
   photoUris: string[];
   voiceNoteUri: string;
   voiceNoteDurationSeconds: number;
+  processing: ProcessingState;
+};
+
+const processingLabels: Record<ProcessingState["status"], string> = {
+  queued: "Queued for secure upload",
+  uploading: "Uploading private media",
+  transcribing: "Transcribing voice note",
+  generating: "Creating newsletter draft",
+  ready: "Ready for review",
+  failed: "Processing needs attention"
 };
 
 export default function App() {
@@ -41,7 +51,21 @@ export default function App() {
       }
 
       try {
-        setSavedEntries(JSON.parse(storedEntries) as SavedEntry[]);
+        const parsedEntries: unknown = JSON.parse(storedEntries);
+        if (!Array.isArray(parsedEntries)) {
+          throw new Error("Saved entries are not a list.");
+        }
+
+        setSavedEntries(
+          parsedEntries.map((entry) => {
+            const savedEntry = entry as SavedEntry & { processing?: unknown };
+            const processing = processingStateSchema.safeParse(savedEntry.processing);
+            return {
+              ...savedEntry,
+              processing: processing.success ? processing.data : { status: "queued" }
+            };
+          })
+        );
       } catch {
         setMessage("Saved entries could not be loaded.");
       }
@@ -101,7 +125,8 @@ export default function App() {
       contentMode,
       photoUris: photos.map((photo) => photo.uri),
       voiceNoteUri: recorder.uri as string,
-      voiceNoteDurationSeconds: recordedSeconds
+      voiceNoteDurationSeconds: recordedSeconds,
+      processing: { status: "queued" }
     };
     const nextEntries = [entry, ...savedEntries];
 
@@ -133,6 +158,10 @@ export default function App() {
               <Text style={styles.helper}>
                 {entry.photoUris.length} photos · {entry.voiceNoteDurationSeconds}s voice note · {entry.contentMode}
               </Text>
+              <Text style={styles.status}>{processingLabels[entry.processing.status]}</Text>
+              {entry.processing.status === "failed" && entry.processing.errorMessage ? (
+                <Text style={styles.error}>{entry.processing.errorMessage}</Text>
+              ) : null}
             </View>
           ))
         )}
@@ -273,5 +302,12 @@ const styles = StyleSheet.create({
     color: "#20352f",
     fontSize: 18,
     fontWeight: "700"
+  },
+  status: {
+    color: "#9a5b35",
+    fontWeight: "700"
+  },
+  error: {
+    color: "#9b2c2c"
   }
 });
