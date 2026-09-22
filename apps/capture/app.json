@@ -1,0 +1,23 @@
+{
+  "expo": {
+    "name": "Travel Newsletter",
+    "slug": "travel-newsletter",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "plugins": [
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Allow Travel Newsletter to record your voice note."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Travel Newsletter to select your travel photos."
+        }
+      ]
+    ]
+  }
+}
