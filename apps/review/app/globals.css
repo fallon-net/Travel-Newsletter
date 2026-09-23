@@ -1,5 +1,7 @@
 :root {
   color-scheme: light;
+  background: #f3efe7;
+  color: #20352f;
   font-family: Georgia, serif;
 }
 
@@ -12,12 +14,63 @@ body {
 }
 
 main {
+  background: #fffdf8;
+  border: 1px solid #d8d0c2;
+  border-radius: 8px;
   margin: 0 auto;
   max-width: 720px;
   padding: 64px 24px;
 }
 
+.eyebrow {
+  color: #9a5b35;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+}
+
 h1 {
   font-size: 48px;
   margin: 0 0 16px;
+}
+
+form {
+  display: grid;
+  gap: 16px;
+  margin: 32px 0 16px;
+  max-width: 420px;
+}
+
+label {
+  display: grid;
+  gap: 8px;
+  font-weight: 700;
+}
+
+input {
+  border: 1px solid #b9c8c0;
+  border-radius: 6px;
+  font: inherit;
+  padding: 12px;
+}
+
+button {
+  background: #20352f;
+  border: 0;
+  border-radius: 6px;
+  color: #ffffff;
+  cursor: pointer;
+  font: inherit;
+  padding: 12px 16px;
+}
+
+button:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+.textButton {
+  background: transparent;
+  color: #9a5b35;
+  padding-left: 0;
 }
