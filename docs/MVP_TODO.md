@@ -29,7 +29,7 @@
 
 - [x] Show photos, transcript, metadata, generated draft, and review flags.
 - [x] Support editing the title, subject lines, preview text, body, captions, call to action, prayer request, social caption, and hashtags.
-- [ ] Support regenerate, replace, crop, blur, and delete for media or generated content as appropriate.
+- [x] Support regenerate, replace, crop, blur, and delete for media or generated content as appropriate.
 - [ ] Flag faces, children, license plates, private addresses, and sensitive information.
 - [x] Require confirmation of location and human review before export.
 

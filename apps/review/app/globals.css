@@ -155,3 +155,27 @@ button:disabled {
   flex-wrap: wrap;
   gap: 8px;
 }
+
+.mediaEditor {
+  display: grid;
+  gap: 12px;
+}
+
+.mediaItem {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.mediaItem img {
+  aspect-ratio: 1;
+  border-radius: 6px;
+  object-fit: cover;
+  width: 96px;
+}
+
+.mediaItem label {
+  flex: 1;
+  min-width: 180px;
+}
