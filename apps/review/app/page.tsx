@@ -102,18 +102,21 @@ export default function HomePage() {
     }
 
     setIsSavingReview(true);
-    const result = await supabase
-      .from("newsletter_entries")
-      .update({
-        draft: parsedDraft.data,
-        location_confirmed: true,
-        human_reviewed: true,
-        reviewed_at: new Date().toISOString()
-      })
-      .eq("id", selectedEntry.id);
+    const session = await supabase.auth.getSession();
+    const accessToken = session.data.session?.access_token;
+    if (!accessToken) {
+      setMessage("Your session expired. Sign in again.");
+      return;
+    }
+    const response = await fetch(`/api/entries/${selectedEntry.id}/review`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ draft: parsedDraft.data, locationConfirmed: true })
+    });
+    const result = (await response.json()) as { error?: string };
     setIsSavingReview(false);
-    setMessage(result.error ? `Could not save review: ${result.error.message}` : "Review saved. Export remains gated until the next step.");
-    if (!result.error) {
+    setMessage(!response.ok ? `Could not save review: ${result.error ?? "Unknown error"}` : "Review saved.");
+    if (response.ok) {
       await loadEntries();
     }
   };
@@ -127,6 +130,14 @@ export default function HomePage() {
     URL.revokeObjectURL(url);
   };
 
+  const escapeHtml = (value: string) => value.replace(/[&<>"']/g, (character) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  })[character] ?? character);
+
   const exportNewsletter = () => {
     const selectedEntry = entries.find((entry) => entry.id === selectedEntryId);
     if (!selectedEntry || !draft || !selectedEntry.human_reviewed || !selectedEntry.location_confirmed) {
@@ -136,7 +147,7 @@ export default function HomePage() {
 
     downloadText(
       `${draft.title || "travel-newsletter"}.html`,
-      `<!doctype html><html><head><meta charset="utf-8"><title>${draft.title}</title></head><body><h1>${draft.title}</h1><p>${draft.previewText}</p><p>${draft.openingParagraph}</p><p>${draft.body.replace(/\n/g, "</p><p>")}</p><h2>Continue the journey</h2><p>${draft.callToAction}</p></body></html>`,
+      `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(draft.title)}</title></head><body><h1>${escapeHtml(draft.title)}</h1><p>${escapeHtml(draft.previewText)}</p><p>${escapeHtml(draft.openingParagraph)}</p><p>${escapeHtml(draft.body).replace(/\n/g, "</p><p>")}</p><h2>Continue the journey</h2><p>${escapeHtml(draft.callToAction)}</p></body></html>`,
       "text/html"
     );
   };

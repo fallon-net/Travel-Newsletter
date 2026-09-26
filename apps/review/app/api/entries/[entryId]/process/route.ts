@@ -1,5 +1,5 @@
-import { createClient } from "@supabase/supabase-js";
 import { newsletterDraftSchema } from "@travel-newsletter/shared";
+import { getAuthenticatedServerClient } from "../../../../../lib/server-supabase";
 
 export const runtime = "nodejs";
 
@@ -112,34 +112,22 @@ async function generateDraft(entry: Entry, transcript: string, imageUrls: string
 }
 
 export async function POST(request: Request, context: { params: Promise<{ entryId: string }> }) {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   const openAiApiKey = process.env.OPENAI_API_KEY;
-  const authorization = request.headers.get("authorization");
-
-  if (!supabaseUrl || !supabaseAnonKey || !openAiApiKey) {
+  if (!openAiApiKey) {
     return errorResponse("Processing server configuration is missing.", 500);
   }
-  if (!authorization?.startsWith("Bearer ")) {
-    return errorResponse("Authentication is required.", 401);
-  }
-
-  const token = authorization.slice("Bearer ".length);
-  const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-    auth: { autoRefreshToken: false, detectSessionInUrl: false, persistSession: false },
-    global: { headers: { Authorization: authorization } }
-  });
-  const { data: userData, error: userError } = await supabase.auth.getUser(token);
-  if (userError || !userData.user) {
+  const authenticated = await getAuthenticatedServerClient(request);
+  if (!authenticated) {
     return errorResponse("Authentication is invalid or expired.", 401);
   }
+  const { supabase, userId } = authenticated;
 
   const { entryId } = await context.params;
   const { data: entry, error: entryError } = await supabase
     .from("newsletter_entries")
     .select("id,title,location,captured_at,content_mode,status,voice_note_path,photo_paths")
     .eq("id", entryId)
-    .eq("user_id", userData.user.id)
+    .eq("user_id", userId)
     .single();
 
   if (entryError || !entry) {

@@ -1,5 +1,5 @@
-import { createClient } from "@supabase/supabase-js";
 import { captureEntrySchema } from "@travel-newsletter/shared";
+import { getAuthenticatedServerClient } from "../../../lib/server-supabase";
 
 export const runtime = "nodejs";
 
@@ -17,28 +17,11 @@ function extensionFor(file: File, fallback: string) {
 }
 
 export async function POST(request: Request) {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  const authorization = request.headers.get("authorization");
-
-  if (!supabaseUrl || !supabaseAnonKey) {
-    return response("Supabase server configuration is missing.", 500);
-  }
-
-  if (!authorization?.startsWith("Bearer ")) {
-    return response("Authentication is required.", 401);
-  }
-
-  const token = authorization.slice("Bearer ".length);
-  const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-    auth: { autoRefreshToken: false, detectSessionInUrl: false, persistSession: false },
-    global: { headers: { Authorization: authorization } }
-  });
-  const { data: userData, error: userError } = await supabase.auth.getUser(token);
-
-  if (userError || !userData.user) {
+  const authenticated = await getAuthenticatedServerClient(request);
+  if (!authenticated) {
     return response("Authentication is invalid or expired.", 401);
   }
+  const { supabase, userId } = authenticated;
 
   const formData = await request.formData();
   const photos = formData.getAll("photos");
@@ -73,7 +56,7 @@ export async function POST(request: Request) {
   const { data: entry, error: insertError } = await supabase
     .from("newsletter_entries")
     .insert({
-      user_id: userData.user.id,
+      user_id: userId,
       title: capture.data.title ?? null,
       location: capture.data.location ?? null,
       captured_at: capture.data.capturedAt.toISOString(),
@@ -92,7 +75,7 @@ export async function POST(request: Request) {
   const photoPaths: string[] = [];
   for (const [index, photo] of photos.entries()) {
     const photoFile = photo as File;
-    const path = `${userData.user.id}/${entry.id}/photo-${index + 1}.${extensionFor(photoFile, "jpg")}`;
+    const path = `${userId}/${entry.id}/photo-${index + 1}.${extensionFor(photoFile, "jpg")}`;
     const { error } = await supabase.storage.from(mediaBucket).upload(path, await photoFile.arrayBuffer(), {
       contentType: photoFile.type,
       upsert: false
@@ -105,7 +88,7 @@ export async function POST(request: Request) {
     photoPaths.push(path);
   }
 
-  const voicePath = `${userData.user.id}/${entry.id}/voice-note.${extensionFor(voiceNote, "m4a")}`;
+  const voicePath = `${userId}/${entry.id}/voice-note.${extensionFor(voiceNote, "m4a")}`;
   const { error: voiceError } = await supabase.storage.from(mediaBucket).upload(voicePath, await voiceNote.arrayBuffer(), {
     contentType: voiceNote.type,
     upsert: false

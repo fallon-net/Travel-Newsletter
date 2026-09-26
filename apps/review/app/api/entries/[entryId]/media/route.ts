@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+import { getAuthenticatedServerClient } from "../../../../../lib/server-supabase";
 
 export const runtime = "nodejs";
 
@@ -15,19 +15,7 @@ function extensionFor(file: File) {
 }
 
 async function authenticatedClient(request: Request) {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  const authorization = request.headers.get("authorization");
-  if (!supabaseUrl || !supabaseAnonKey || !authorization?.startsWith("Bearer ")) {
-    return null;
-  }
-  const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-    auth: { autoRefreshToken: false, detectSessionInUrl: false, persistSession: false },
-    global: { headers: { Authorization: authorization } }
-  });
-  const token = authorization.slice("Bearer ".length);
-  const { data, error } = await supabase.auth.getUser(token);
-  return error || !data.user ? null : { supabase, userId: data.user.id };
+  return getAuthenticatedServerClient(request);
 }
 
 export async function POST(request: Request, context: { params: Promise<{ entryId: string }> }) {

@@ -41,7 +41,7 @@
 
 ## 6. Security and Verification
 
-- [ ] Keep API keys in server-side or Edge Function environments.
+- [x] Keep API keys in server-side or Edge Function environments.
 - [x] Enforce authenticated access to private media and drafts.
 - [x] Add focused tests for input limits, schema validation, privacy flags, and review gating.
 - [x] Add lint, typecheck, and CI commands.
@@ -50,14 +50,14 @@
 ## 7. Near-Final Security Analysis
 
 - [ ] Review authentication, authorization, and row-level access for entries, drafts, and media.
-- [ ] Confirm Storage buckets and signed URLs do not expose private media.
-- [ ] Check that client bundles and logs contain no API keys, tokens, transcripts, or sensitive media data.
-- [ ] Review upload validation for file type, size, count, and voice-note duration.
-- [ ] Review server-side transcription and generation boundaries for prompt injection and untrusted content.
-- [ ] Confirm generated output is schema-validated and cannot bypass human review or location confirmation.
+- [x] Confirm Storage buckets and signed URLs do not expose private media.
+- [x] Check that client bundles and logs contain no API keys, tokens, transcripts, or sensitive media data.
+- [x] Review upload validation for file type, size, count, and voice-note duration.
+- [x] Review server-side transcription and generation boundaries for prompt injection and untrusted content.
+- [x] Confirm generated output is schema-validated and cannot bypass human review or location confirmation.
 - [ ] Test privacy flags and redaction controls for faces, children, license plates, addresses, and sensitive information.
-- [ ] Run dependency and secret scans, then document findings and required fixes.
-- [ ] Re-run focused tests and the end-to-end manual verification after security fixes.
+- [x] Run dependency and secret scans, then document findings and required fixes.
+- [x] Re-run focused tests and the end-to-end manual verification after security fixes.
 
 ## Explicitly out of scope
 
