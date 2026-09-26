@@ -115,6 +115,38 @@ export default function HomePage() {
     }
   };
 
+  const downloadText = (filename: string, content: string, type: string) => {
+    const url = URL.createObjectURL(new Blob([content], { type }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const exportNewsletter = () => {
+    const selectedEntry = entries.find((entry) => entry.id === selectedEntryId);
+    if (!selectedEntry || !draft || !selectedEntry.human_reviewed || !selectedEntry.location_confirmed) {
+      setMessage("Complete location confirmation and human review before exporting.");
+      return;
+    }
+
+    downloadText(
+      `${draft.title || "travel-newsletter"}.html`,
+      `<!doctype html><html><head><meta charset="utf-8"><title>${draft.title}</title></head><body><h1>${draft.title}</h1><p>${draft.previewText}</p><p>${draft.openingParagraph}</p><p>${draft.body.replace(/\n/g, "</p><p>")}</p><h2>Continue the journey</h2><p>${draft.callToAction}</p></body></html>`,
+      "text/html"
+    );
+  };
+
+  const exportSocial = () => {
+    const selectedEntry = entries.find((entry) => entry.id === selectedEntryId);
+    if (!selectedEntry || !draft || !selectedEntry.human_reviewed || !selectedEntry.location_confirmed) {
+      setMessage("Complete location confirmation and human review before exporting.");
+      return;
+    }
+    downloadText("travel-newsletter-social.txt", `${draft.socialCaption}\n\n${draft.hashtags.join(" ")}`, "text/plain");
+  };
+
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUser(data.user));
     const { data } = supabase.auth.onAuthStateChange((_event, session) => setUser(session?.user ?? null));
@@ -190,8 +222,15 @@ export default function HomePage() {
             <label>Prayer request<textarea value={draft.prayerRequest ?? ""} onChange={(event) => updateDraft("prayerRequest", event.target.value || null)} /></label>
             <label>Social caption<textarea value={draft.socialCaption} onChange={(event) => updateDraft("socialCaption", event.target.value)} /></label>
             <label>Hashtags<textarea value={draft.hashtags.join("\n")} onChange={(event) => updateDraft("hashtags", event.target.value.split("\n").filter(Boolean))} /></label>
+            {draft.reviewFlags.length > 0 ? <div className="flags" role="alert"><strong>Review flags</strong><ul>{draft.reviewFlags.map((flag) => <li key={flag}>{flag}</li>)}</ul></div> : null}
             <label className="checkLabel"><input type="checkbox" checked={locationConfirmed} onChange={(event) => setLocationConfirmed(event.target.checked)} /> I confirm the location is correct.</label>
             <button type="button" onClick={() => void saveReview()} disabled={isSavingReview}>{isSavingReview ? "Saving review..." : "Save reviewed draft"}</button>
+            {entries.find((entry) => entry.id === selectedEntryId)?.human_reviewed ? (
+              <div className="exportActions">
+                <button type="button" onClick={exportNewsletter}>Export newsletter</button>
+                <button type="button" onClick={exportSocial}>Export social caption</button>
+              </div>
+            ) : null}
           </section>
         ) : null}
         <button type="button" onClick={() => supabase.auth.signOut()}>

@@ -35,8 +35,8 @@
 
 ## 5. Export
 
-- [ ] Export the reviewed one-page newsletter.
-- [ ] Export the social caption and hashtags.
+- [x] Export the reviewed one-page newsletter.
+- [x] Export the social caption and hashtags.
 - [ ] Keep automatic publishing out of scope.
 
 ## 6. Security and Verification
