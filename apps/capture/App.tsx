@@ -220,7 +220,26 @@ export default function App() {
       );
       setSavedEntries(uploadedEntries);
       await AsyncStorage.setItem(savedEntriesStorageKey, JSON.stringify(uploadedEntries));
-      setMessage("Entry uploaded and queued for processing.");
+      setMessage("Entry uploaded. Processing voice note and photos...");
+
+      const processingResponse = await fetch(`${reviewApiUrl.replace(/\/$/, "")}/api/entries/${payload.entryId}/process`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${accessToken}` }
+      });
+      const processingPayload = (await processingResponse.json()) as { status?: ProcessingState["status"]; error?: string };
+      const processedEntries = uploadedEntries.map((savedEntry) =>
+        savedEntry.id === payload.entryId
+          ? {
+              ...savedEntry,
+              processing: processingResponse.ok
+                ? { status: processingPayload.status ?? "ready" }
+                : { status: "failed" as const, errorMessage: processingPayload.error ?? "Processing failed." }
+            }
+          : savedEntry
+      );
+      setSavedEntries(processedEntries);
+      await AsyncStorage.setItem(savedEntriesStorageKey, JSON.stringify(processedEntries));
+      setMessage(processingResponse.ok ? "Entry is ready for review." : "Upload succeeded, but processing failed.");
     } catch (error) {
       const failedEntries = nextEntries.map((savedEntry) =>
         savedEntry.id === localId

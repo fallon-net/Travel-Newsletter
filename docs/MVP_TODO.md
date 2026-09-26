@@ -20,9 +20,9 @@
 ## 3. Processing
 
 - [x] Upload private media to Supabase Storage.
-- [ ] Transcribe the voice note server-side.
-- [ ] Generate structured newsletter output from the transcript, confirmed metadata, and image observations.
-- [ ] Validate generated output with the shared Zod schema.
+- [x] Transcribe the voice note server-side.
+- [x] Generate structured newsletter output from the transcript, confirmed metadata, and image observations.
+- [x] Validate generated output with the shared Zod schema.
 - [x] Preserve processing status and actionable failure states.
 
 ## 4. Review

@@ -8,7 +8,10 @@ export const newsletterDraftSchema = z.object({
   subjectLines: z.array(z.string()).min(3).max(5),
   previewText: z.string(),
   openingParagraph: z.string(),
-  body: z.string(),
+  body: z.string().refine((value) => {
+    const wordCount = value.trim().split(/\s+/).filter(Boolean).length;
+    return wordCount >= 250 && wordCount <= 400;
+  }, "Body must contain 250-400 words."),
   photoCaptions: z.array(z.string()).length(3),
   callToAction: z.string(),
   prayerRequest: z.string().nullable(),
