@@ -2,6 +2,7 @@
 
 import { type FormEvent, useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
+import { newsletterDraftSchema, type NewsletterDraft } from "@travel-newsletter/shared";
 import { supabase } from "../lib/supabase";
 
 type Entry = {
@@ -16,6 +17,8 @@ type Entry = {
   photo_paths: string[];
   transcript: string | null;
   draft: Record<string, unknown> | null;
+  location_confirmed: boolean;
+  human_reviewed: boolean;
 };
 
 type EntryWithUrls = Entry & { photoUrls: string[] };
@@ -29,12 +32,16 @@ export default function HomePage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [entries, setEntries] = useState<EntryWithUrls[]>([]);
   const [isLoadingEntries, setIsLoadingEntries] = useState(false);
+  const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
+  const [draft, setDraft] = useState<NewsletterDraft | null>(null);
+  const [locationConfirmed, setLocationConfirmed] = useState(false);
+  const [isSavingReview, setIsSavingReview] = useState(false);
 
   const loadEntries = async () => {
     setIsLoadingEntries(true);
     const result = await supabase
       .from("newsletter_entries")
-      .select("id,title,location,captured_at,content_mode,status,error_message,voice_note_duration_seconds,photo_paths,transcript,draft")
+      .select("id,title,location,captured_at,content_mode,status,error_message,voice_note_duration_seconds,photo_paths,transcript,draft,location_confirmed,human_reviewed")
       .order("created_at", { ascending: false });
 
     if (result.error) {
@@ -55,7 +62,57 @@ export default function HomePage() {
       })
     );
     setEntries(entriesWithUrls);
+    if (selectedEntryId) {
+      const refreshedEntry = entriesWithUrls.find((entry) => entry.id === selectedEntryId);
+      if (refreshedEntry) {
+        selectEntry(refreshedEntry);
+      }
+    }
     setIsLoadingEntries(false);
+  };
+
+  const selectEntry = (entry: EntryWithUrls) => {
+    setSelectedEntryId(entry.id);
+    setLocationConfirmed(entry.location_confirmed);
+    const parsedDraft = newsletterDraftSchema.safeParse(entry.draft);
+    setDraft(parsedDraft.success ? parsedDraft.data : null);
+  };
+
+  const updateDraft = <Key extends keyof NewsletterDraft>(key: Key, value: NewsletterDraft[Key]) => {
+    setDraft((current) => current ? { ...current, [key]: value } : current);
+  };
+
+  const saveReview = async () => {
+    const selectedEntry = entries.find((entry) => entry.id === selectedEntryId);
+    if (!selectedEntry || !draft) {
+      setMessage("Select a generated draft before saving review changes.");
+      return;
+    }
+    if (!locationConfirmed) {
+      setMessage("Confirm the location before completing human review.");
+      return;
+    }
+    const parsedDraft = newsletterDraftSchema.safeParse(draft);
+    if (!parsedDraft.success) {
+      setMessage("The draft must pass validation before review can be completed.");
+      return;
+    }
+
+    setIsSavingReview(true);
+    const result = await supabase
+      .from("newsletter_entries")
+      .update({
+        draft: parsedDraft.data,
+        location_confirmed: true,
+        human_reviewed: true,
+        reviewed_at: new Date().toISOString()
+      })
+      .eq("id", selectedEntry.id);
+    setIsSavingReview(false);
+    setMessage(result.error ? `Could not save review: ${result.error.message}` : "Review saved. Export remains gated until the next step.");
+    if (!result.error) {
+      await loadEntries();
+    }
   };
 
   useEffect(() => {
@@ -114,9 +171,29 @@ export default function HomePage() {
               ) : null}
               {entry.transcript ? <p><strong>Transcript:</strong> {entry.transcript}</p> : <p>Transcript pending.</p>}
               {entry.error_message ? <p role="alert">{entry.error_message}</p> : null}
+              <button type="button" onClick={() => selectEntry(entry)} disabled={!entry.draft}>
+                {entry.draft ? "Open review" : "Draft pending"}
+              </button>
             </article>
           ))}
         </section>
+        {selectedEntryId && draft ? (
+          <section className="reviewPanel" aria-label="Newsletter draft review">
+            <p className="eyebrow">EDITABLE DRAFT</p>
+            <label>Title<input value={draft.title} onChange={(event) => updateDraft("title", event.target.value)} /></label>
+            <label>Subject lines<textarea value={draft.subjectLines.join("\n")} onChange={(event) => updateDraft("subjectLines", event.target.value.split("\n").filter(Boolean))} /></label>
+            <label>Preview text<textarea value={draft.previewText} onChange={(event) => updateDraft("previewText", event.target.value)} /></label>
+            <label>Opening paragraph<textarea value={draft.openingParagraph} onChange={(event) => updateDraft("openingParagraph", event.target.value)} /></label>
+            <label>Body<textarea className="bodyInput" value={draft.body} onChange={(event) => updateDraft("body", event.target.value)} /></label>
+            <label>Photo captions<textarea value={draft.photoCaptions.join("\n")} onChange={(event) => updateDraft("photoCaptions", event.target.value.split("\n"))} /></label>
+            <label>Call to action<input value={draft.callToAction} onChange={(event) => updateDraft("callToAction", event.target.value)} /></label>
+            <label>Prayer request<textarea value={draft.prayerRequest ?? ""} onChange={(event) => updateDraft("prayerRequest", event.target.value || null)} /></label>
+            <label>Social caption<textarea value={draft.socialCaption} onChange={(event) => updateDraft("socialCaption", event.target.value)} /></label>
+            <label>Hashtags<textarea value={draft.hashtags.join("\n")} onChange={(event) => updateDraft("hashtags", event.target.value.split("\n").filter(Boolean))} /></label>
+            <label className="checkLabel"><input type="checkbox" checked={locationConfirmed} onChange={(event) => setLocationConfirmed(event.target.checked)} /> I confirm the location is correct.</label>
+            <button type="button" onClick={() => void saveReview()} disabled={isSavingReview}>{isSavingReview ? "Saving review..." : "Save reviewed draft"}</button>
+          </section>
+        ) : null}
         <button type="button" onClick={() => supabase.auth.signOut()}>
           Sign out
         </button>

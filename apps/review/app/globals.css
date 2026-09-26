@@ -107,3 +107,34 @@ button:disabled {
   object-fit: cover;
   width: 96px;
 }
+
+.reviewPanel {
+  border-top: 2px solid #20352f;
+  display: grid;
+  gap: 16px;
+  margin-top: 32px;
+  padding-top: 24px;
+}
+
+.reviewPanel label {
+  font-weight: 700;
+}
+
+.reviewPanel textarea {
+  min-height: 80px;
+  resize: vertical;
+}
+
+.reviewPanel .bodyInput {
+  min-height: 260px;
+}
+
+.checkLabel {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
+.checkLabel input {
+  width: auto;
+}

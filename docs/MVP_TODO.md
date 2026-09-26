@@ -27,11 +27,11 @@
 
 ## 4. Review
 
-- [ ] Show photos, transcript, metadata, generated draft, and review flags.
-- [ ] Support editing the title, subject lines, preview text, body, captions, call to action, prayer request, social caption, and hashtags.
+- [x] Show photos, transcript, metadata, generated draft, and review flags.
+- [x] Support editing the title, subject lines, preview text, body, captions, call to action, prayer request, social caption, and hashtags.
 - [ ] Support regenerate, replace, crop, blur, and delete for media or generated content as appropriate.
 - [ ] Flag faces, children, license plates, private addresses, and sensitive information.
-- [ ] Require confirmation of location and human review before export.
+- [x] Require confirmation of location and human review before export.
 
 ## 5. Export
 
