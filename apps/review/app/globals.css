@@ -74,3 +74,36 @@ button:disabled {
   color: #9a5b35;
   padding-left: 0;
 }
+
+.entryList {
+  display: grid;
+  gap: 16px;
+  margin: 32px 0;
+}
+
+.entry {
+  border: 1px solid #d8d0c2;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.entry h2 {
+  margin: 0 0 8px;
+}
+
+.entry p {
+  line-height: 1.5;
+}
+
+.photoRow {
+  display: flex;
+  gap: 8px;
+  margin: 16px 0;
+}
+
+.photoRow img {
+  aspect-ratio: 1;
+  border-radius: 6px;
+  object-fit: cover;
+  width: 96px;
+}

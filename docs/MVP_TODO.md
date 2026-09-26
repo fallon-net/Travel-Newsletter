@@ -19,11 +19,11 @@
 
 ## 3. Processing
 
-- [ ] Upload private media to Supabase Storage.
+- [x] Upload private media to Supabase Storage.
 - [ ] Transcribe the voice note server-side.
 - [ ] Generate structured newsletter output from the transcript, confirmed metadata, and image observations.
 - [ ] Validate generated output with the shared Zod schema.
-- [ ] Preserve processing status and actionable failure states.
+- [x] Preserve processing status and actionable failure states.
 
 ## 4. Review
 
@@ -42,7 +42,7 @@
 ## 6. Security and Verification
 
 - [ ] Keep API keys in server-side or Edge Function environments.
-- [ ] Enforce authenticated access to private media and drafts.
+- [x] Enforce authenticated access to private media and drafts.
 - [ ] Add focused tests for input limits, schema validation, privacy flags, and review gating.
 - [ ] Add lint, typecheck, and CI commands.
 - [ ] Verify the complete capture-to-review-to-export flow manually.

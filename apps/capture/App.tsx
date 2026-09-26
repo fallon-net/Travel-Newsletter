@@ -4,10 +4,13 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useEffect, useState } from "react";
 import { Button, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
+import type { User } from "@supabase/supabase-js";
 import { captureEntrySchema, processingStateSchema, type ProcessingState } from "@travel-newsletter/shared";
+import { supabase } from "./lib/supabase";
 
 const contentModes = ["general", "ministry", "business", "personal"] as const;
 const savedEntriesStorageKey = "travel-newsletter.saved-entries";
+const reviewApiUrl = process.env.EXPO_PUBLIC_REVIEW_API_URL;
 
 type SavedEntry = {
   id: string;
@@ -40,6 +43,12 @@ export default function App() {
   const [message, setMessage] = useState("");
   const [savedEntries, setSavedEntries] = useState<SavedEntry[]>([]);
   const [screen, setScreen] = useState<"home" | "capture">("home");
+  const [user, setUser] = useState<User | null>(null);
+  const [authEmail, setAuthEmail] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
+  const [authMode, setAuthMode] = useState<"signIn" | "signUp">("signIn");
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const recordedSeconds = Math.round(recorderState.durationMillis / 1000);
   const hasValidVoiceNote = recordedSeconds >= 30 && recordedSeconds <= 180 && Boolean(recorder.uri);
   const canSubmit = photos.length === 3 && hasValidVoiceNote;
@@ -72,6 +81,12 @@ export default function App() {
     });
   }, []);
 
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setUser(data.user));
+    const { data } = supabase.auth.onAuthStateChange((_event, session) => setUser(session?.user ?? null));
+    return () => data.subscription.unsubscribe();
+  }, []);
+
   const choosePhotos = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       allowsMultipleSelection: true,
@@ -102,7 +117,23 @@ export default function App() {
     setMessage("Recording started. Record between 30 seconds and 3 minutes.");
   };
 
-  const saveEntry = () => {
+  const authenticate = async () => {
+    setIsAuthenticating(true);
+    setMessage("");
+    const result = authMode === "signUp"
+      ? await supabase.auth.signUp({ email: authEmail, password: authPassword })
+      : await supabase.auth.signInWithPassword({ email: authEmail, password: authPassword });
+    setIsAuthenticating(false);
+
+    if (result.error) {
+      setMessage(result.error.message);
+      return;
+    }
+
+    setMessage(authMode === "signUp" ? "Account created. Check email confirmation if enabled." : "Signed in.");
+  };
+
+  const saveEntry = async () => {
     const result = captureEntrySchema.safeParse({
       title: title.trim() || undefined,
       location: location.trim() || undefined,
@@ -117,8 +148,19 @@ export default function App() {
       return;
     }
 
+    if (!user) {
+      setMessage("Sign in before uploading a private entry.");
+      return;
+    }
+
+    if (!reviewApiUrl) {
+      setMessage("The review API URL is not configured.");
+      return;
+    }
+
+    const localId = new Date().toISOString();
     const entry: SavedEntry = {
-      id: new Date().toISOString(),
+      id: localId,
       title: title.trim() || undefined,
       location: location.trim() || undefined,
       capturedAt: new Date().toISOString(),
@@ -126,15 +168,71 @@ export default function App() {
       photoUris: photos.map((photo) => photo.uri),
       voiceNoteUri: recorder.uri as string,
       voiceNoteDurationSeconds: recordedSeconds,
-      processing: { status: "queued" }
+      processing: { status: "uploading" }
     };
     const nextEntries = [entry, ...savedEntries];
 
     setSavedEntries(nextEntries);
-    AsyncStorage.setItem(savedEntriesStorageKey, JSON.stringify(nextEntries)).catch(() => {
-      setMessage("Entry is ready, but could not be saved locally.");
-    });
-    setMessage("Entry saved locally and ready for processing.");
+    await AsyncStorage.setItem(savedEntriesStorageKey, JSON.stringify(nextEntries));
+    setIsUploading(true);
+    setMessage("Uploading private media...");
+
+    try {
+      const session = await supabase.auth.getSession();
+      const accessToken = session.data.session?.access_token;
+      if (!accessToken) {
+        throw new Error("Your session expired. Sign in again.");
+      }
+
+      const formData = new FormData();
+      photos.forEach((photo, index) => {
+        formData.append("photos", {
+          uri: photo.uri,
+          name: `photo-${index + 1}.jpg`,
+          type: photo.mimeType ?? "image/jpeg"
+        } as unknown as Blob);
+      });
+      formData.append("voiceNote", {
+        uri: recorder.uri,
+        name: "voice-note.m4a",
+        type: "audio/m4a"
+      } as unknown as Blob);
+      formData.append("title", title.trim());
+      formData.append("location", location.trim());
+      formData.append("capturedAt", new Date().toISOString());
+      formData.append("contentMode", contentMode);
+      formData.append("voiceNoteDurationSeconds", String(recordedSeconds));
+
+      const response = await fetch(`${reviewApiUrl.replace(/\/$/, "")}/api/entries`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${accessToken}` },
+        body: formData
+      });
+      const payload = (await response.json()) as { entryId?: string; status?: ProcessingState["status"]; error?: string };
+      if (!response.ok || !payload.entryId) {
+        throw new Error(payload.error ?? "Upload failed. Retry the entry.");
+      }
+
+      const uploadedEntries = nextEntries.map((savedEntry) =>
+        savedEntry.id === localId
+          ? { ...savedEntry, id: payload.entryId as string, processing: { status: payload.status ?? "queued" } }
+          : savedEntry
+      );
+      setSavedEntries(uploadedEntries);
+      await AsyncStorage.setItem(savedEntriesStorageKey, JSON.stringify(uploadedEntries));
+      setMessage("Entry uploaded and queued for processing.");
+    } catch (error) {
+      const failedEntries = nextEntries.map((savedEntry) =>
+        savedEntry.id === localId
+          ? { ...savedEntry, processing: { status: "failed" as const, errorMessage: error instanceof Error ? error.message : "Upload failed." } }
+          : savedEntry
+      );
+      setSavedEntries(failedEntries);
+      await AsyncStorage.setItem(savedEntriesStorageKey, JSON.stringify(failedEntries));
+      setMessage("Upload failed. The entry is saved locally for retry.");
+    } finally {
+      setIsUploading(false);
+    }
     setScreen("home");
   };
 
@@ -144,7 +242,21 @@ export default function App() {
         <Text style={styles.eyebrow}>TRAVEL NEWSLETTER</Text>
         <Text style={styles.title}>Your entries</Text>
         <Text style={styles.description}>Start a new story or return to a saved capture.</Text>
-        <Button title="New entry" onPress={() => setScreen("capture")} />
+        {!user ? (
+          <View style={styles.authCard}>
+            <Text style={styles.label}>Sign in to protect your entries</Text>
+            <TextInput autoCapitalize="none" keyboardType="email-address" placeholder="Email" value={authEmail} onChangeText={setAuthEmail} style={styles.input} />
+            <TextInput placeholder="Password" secureTextEntry value={authPassword} onChangeText={setAuthPassword} style={styles.input} />
+            <Button title={isAuthenticating ? "Working..." : authMode === "signUp" ? "Create account" : "Sign in"} onPress={authenticate} disabled={isAuthenticating} />
+            <Button title={authMode === "signUp" ? "Use existing account" : "Create an account"} onPress={() => setAuthMode(authMode === "signUp" ? "signIn" : "signUp")} />
+          </View>
+        ) : (
+          <>
+            <Text style={styles.helper}>Signed in as {user.email}</Text>
+            <Button title="Sign out" onPress={() => supabase.auth.signOut()} />
+          </>
+        )}
+        <Button title="New entry" onPress={() => setScreen("capture")} disabled={!user} />
         <Text style={styles.label}>Saved entries ({savedEntries.length})</Text>
         {savedEntries.length === 0 ? (
           <Text style={styles.helper}>No saved entries yet.</Text>
@@ -201,7 +313,7 @@ export default function App() {
         ))}
       </View>
 
-      <Button title="Save entry" onPress={saveEntry} disabled={!canSubmit} />
+      <Button title={isUploading ? "Uploading..." : "Upload entry"} onPress={saveEntry} disabled={!canSubmit || isUploading} />
       {message ? <Text style={styles.message}>{message}</Text> : null}
       <StatusBar style="auto" />
     </ScrollView>
@@ -309,5 +421,14 @@ const styles = StyleSheet.create({
   },
   error: {
     color: "#9b2c2c"
+  },
+  authCard: {
+    alignSelf: "stretch",
+    backgroundColor: "#eef3ef",
+    borderColor: "#c8d5cc",
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 12,
+    padding: 16
   }
 });
