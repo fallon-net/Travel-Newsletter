@@ -5,6 +5,7 @@
   "scripts": {
     "dev:capture": "pnpm --filter @travel-newsletter/capture start",
     "dev:review": "pnpm --filter @travel-newsletter/review dev",
-    "typecheck": "pnpm --recursive typecheck"
+    "typecheck": "pnpm --recursive typecheck",
+    "test": "pnpm --filter @travel-newsletter/shared test"
   }
 }

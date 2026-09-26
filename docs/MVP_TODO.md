@@ -43,8 +43,8 @@
 
 - [ ] Keep API keys in server-side or Edge Function environments.
 - [x] Enforce authenticated access to private media and drafts.
-- [ ] Add focused tests for input limits, schema validation, privacy flags, and review gating.
-- [ ] Add lint, typecheck, and CI commands.
+- [x] Add focused tests for input limits, schema validation, privacy flags, and review gating.
+- [x] Add lint, typecheck, and CI commands.
 - [ ] Verify the complete capture-to-review-to-export flow manually.
 
 ## 7. Near-Final Security Analysis
