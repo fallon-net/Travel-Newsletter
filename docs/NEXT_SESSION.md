@@ -3,9 +3,9 @@
 ## Repository state
 
 - Branch: `main`
-- Latest pushed commit before this note: `90a135c Add Supabase email authentication`
+- Latest pushed commit: `8599319 Add next session handoff`
 - Supabase migration was applied by the project owner.
-- `.env.local` contains `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` and is ignored by Git.
+- `apps/review/.env.local` must contain `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` for Next.js builds. Copy the values from the local root `.env.local`; both files are ignored by Git.
 - Never commit or display `.env.local` values.
 
 ## Completed
@@ -39,6 +39,8 @@ From the repository root:
 npm exec --yes --package=pnpm@12.5.1 -- pnpm install
 npm exec --yes --package=pnpm@12.5.1 -- pnpm typecheck
 ```
+
+For the review app, create `apps/review/.env.local` from `apps/review/.env.local.example` before running `pnpm --filter @travel-newsletter/review build`.
 
 Useful files:
 
